@@ -9,12 +9,12 @@ Resources:
       Role: !GetAtt GlueServiceRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${DataBucket1}/glue-etl-script.py'
+        ScriptLocation: !Sub 's3://scriptbucket/glue-etl-script.py'
         PythonVersion: '3'
       DefaultArguments:
-        --TempDir: !Sub 's3://${DataBucket1}/temp/'
+        --TempDir: !Sub 's3://scriptbucket/temp/'
         --job-bookmark-option: 'job-bookmark-enable'
-        --extra-py-files: 's3://${DataBucket1}/glue-library.whl'
+        --extra-py-files: 's3://scriptbucket/glue-library.whl'
       GlueVersion: '2.0'
       MaxCapacity: 2.0
 
@@ -39,8 +39,8 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: 
-                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+                  - !Sub 'arn:aws:s3:::scriptbucket/*'
+                  - !Sub 'arn:aws:s3:::databucket/*'
 
  # IAM Role for Step Functions
   StepFunctionsExecutionRole:
@@ -84,8 +84,8 @@ Resources:
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+                  - !Sub 'arn:aws:s3:::scriptbucket/*'
+                  - !Sub 'arn:aws:s3:::databucket/*'
 
   # Step Functions State Machine
   MyStateMachine:
@@ -115,7 +115,7 @@ Resources:
                   "ActionOnFailure": "CONTINUE",
                   "HadoopJarStep": {
                     "Jar": "command-runner.jar",
-                    "Args": ["bash", "-c", "s3://${DataBucket1}/run-spark-job.sh"]
+                    "Args": ["bash", "-c", "s3://scriptbucket/run-spark-job.sh"]
                   }
                 }
               },
@@ -123,11 +123,3 @@ Resources:
             }
           }
         }
-
-Outputs:
-  StateMachineArn:
-    Description: ARN of the Step Functions State Machine
-    Value: !Ref MyStateMachine
-  RDSInstanceEndpoint:
-    Description: Endpoint of the RDS Instance
-    Value: !GetAtt RDSInstance.Endpoint.Address
