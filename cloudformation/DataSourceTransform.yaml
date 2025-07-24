@@ -278,7 +278,7 @@ Resources:
         Ec2SubnetId: !Ref PrivateSubnet
         Ec2KeyName: my-key-pair # Need to create this in AWS and use here
         KeepJobFlowAliveWhenNoSteps: true
-      JobFlowRole: EMR_EC2_DefaultRole
+      JobFlowRole: !Ref EMRClusterRole
       ServiceRole: EMR_DefaultRole
       ReleaseLabel: emr-6.3.0
       Applications:
@@ -290,8 +290,34 @@ Resources:
             maximizeResourceAllocation: "true"
       VisibleToAllUsers: true
       LogUri: !Sub 's3://${DataBucket1}/logs/'
+ # IAM Role for EMR Cluster with S3 Access
+  EMRClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
+      Policies:
+        - PolicyName: EMRS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
 
-  # IAM Role for Step Functions
+ # IAM Role for Step Functions
   StepFunctionsExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -323,6 +349,18 @@ Resources:
                   - elasticmapreduce:ListSteps
                   - elasticmapreduce:AddJobFlowSteps
                 Resource: '*'
+        - PolicyName: StepFunctionsS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
 
   # Step Functions State Machine
   MyStateMachine:
