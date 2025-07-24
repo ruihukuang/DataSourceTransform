@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS and Step Functions
+Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
 
 Resources:
   # VPC
@@ -13,6 +13,27 @@ Resources:
         - Key: Name
           Value: MyVPC
 
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyPublicSubnet
+
   # Private Subnet
   PrivateSubnet:
     Type: AWS::EC2::Subnet
@@ -23,6 +44,56 @@ Resources:
       Tags:
         - Key: Name
           Value: MyPrivateSubnet
+
+  # Public Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # NAT Gateway
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      AllocationId: !GetAtt EIP.AllocationId
+
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # Private Route Table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
 
   # Security Group for RDS
   RDSSecurityGroup:
@@ -35,6 +106,30 @@ Resources:
           FromPort: 3306
           ToPort: 3306
           CidrIp: 10.0.0.0/16
+
+  # Security Group for EMR
+  EMRSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow EMR traffic
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 10.0.0.0/16
+
+  # Secrets Manager Secret
+  RDSSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: MyRDSSecret
+      Description: "RDS master credentials"
+      SecretString: !Sub |
+        {
+          "username": "${MasterUsername}",
+          "password": "${MasterUserPassword}"
+        }
 
   # First S3 Bucket for triggering events
   DataBucket1:
@@ -145,8 +240,8 @@ Resources:
       AllocatedStorage: 2
       DBName: MyDatabase
       Engine: mysql
-      MasterUsername: admin
-      MasterUserPassword: Password123
+      MasterUsername: !Sub '{{resolve:secretsmanager:${RDSSecret}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${RDSSecret}:SecretString:password}}'
       VPCSecurityGroups:
         - !Ref RDSSecurityGroup
       DBSubnetGroupName: !Ref RDSSubnetGroup
@@ -158,6 +253,72 @@ Resources:
       DBSubnetGroupDescription: Subnet group for RDS
       SubnetIds:
         - !Ref PrivateSubnet
+
+  # EMR Cluster
+  EMRCluster:
+    Type: AWS::EMR::Cluster
+    Properties:
+      Name: MyEMRCluster
+      Instances:
+        InstanceGroups:
+          - Name: Master
+            Market: ON_DEMAND
+            InstanceRole: MASTER
+            InstanceType: m3.medium
+            InstanceCount: 1
+          - Name: Core
+            Market: ON_DEMAND
+            InstanceRole: CORE
+            InstanceType: m3.medium
+            InstanceCount: 2
+        Ec2SubnetId: !Ref PrivateSubnet
+        Ec2KeyName: my-key-pair
+        KeepJobFlowAliveWhenNoSteps: true
+      JobFlowRole: EMR_EC2_DefaultRole
+      ServiceRole: EMR_DefaultRole
+      ReleaseLabel: emr-6.3.0
+      Applications:
+        - Name: Hadoop
+        - Name: Spark
+      Configurations:
+        - Classification: spark
+          Properties:
+            maximizeResourceAllocation: "true"
+      VisibleToAllUsers: true
+      LogUri: !Sub 's3://${DataBucket1}/logs/'
+
+  # IAM Role for Step Functions
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsGluePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                Resource: '*'
+        - PolicyName: StepFunctionsEMRPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticmapreduce:RunJobFlow
+                  - elasticmapreduce:DescribeCluster
+                  - elasticmapreduce:ListSteps
+                  - elasticmapreduce:AddJobFlowSteps
+                Resource: '*'
 
   # Step Functions State Machine
   MyStateMachine:
@@ -195,39 +356,6 @@ Resources:
             }
           }
         }
-
-  # IAM Role for Step Functions
-  StepFunctionsExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: states.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: StepFunctionsGluePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - glue:StartJobRun
-                  - glue:GetJobRun
-                Resource: '*'
-        - PolicyName: StepFunctionsEMRPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - elasticmapreduce:RunJobFlow
-                  - elasticmapreduce:DescribeCluster
-                  - elasticmapreduce:ListSteps
-                  - elasticmapreduce:AddJobFlowSteps
-                Resource: '*'
 
 Outputs:
   BucketName1:
