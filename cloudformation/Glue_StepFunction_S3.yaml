@@ -2,21 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
 
 Resources:
-  # First S3 Bucket for triggering events
-  DataBucket1:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: scriptbucket
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Function: !GetAtt TriggerLambdaFunction.Arn
-
-  # Second S3 Bucket for triggering events
-  DataBucket2:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: databucket
   # Glue ETL Job
   GlueETLJob:
     Type: AWS::Glue::Job
