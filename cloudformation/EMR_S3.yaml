@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
-# EMR - Glue Step Function S3 - RDS Lambda
+# EMR S3- Glue Step Function - RDS Lambda
 Parameters:
   DataBucket1:
     Type: String
