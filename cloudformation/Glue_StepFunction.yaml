@@ -9,12 +9,12 @@ Resources:
       Role: !GetAtt GlueServiceRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${Fn::ImportValue MyDataBucket1Name}/glue-etl-script.py'
+        ScriptLocation: !Sub 's3://${Fn::ImportValue MyDataBucket1}/glue-etl-script.py'
         PythonVersion: '3'
       DefaultArguments:
-        --TempDir: !Sub 's3://${Fn::ImportValue MyDataBucket1Name}/temp/'
+        --TempDir: !Sub 's3://${Fn::ImportValue MyDataBucket1}/temp/'
         --job-bookmark-option: 'job-bookmark-enable'
-        --extra-py-files: !Sub 's3://${Fn::ImportValue MyDataBucket1Name}/glue-library.whl'
+        --extra-py-files: !Sub 's3://${Fn::ImportValue MyDataBucket1}/glue-library.whl'
       GlueVersion: '2.0'
       MaxCapacity: 2.0
 
@@ -39,8 +39,8 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: 
-                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket1Name}/*'
-                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket2Name}/*'
+                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket2}/*'
 
   # IAM Role for Step Functions
   StepFunctionsExecutionRole:
@@ -84,8 +84,8 @@ Resources:
                   - s3:PutObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket1Name}/*'
-                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket2Name}/*'
+                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${Fn::ImportValue MyDataBucket2}/*'
 
   # Step Functions State Machine
   MyStateMachine:
@@ -115,7 +115,7 @@ Resources:
                   "ActionOnFailure": "CONTINUE",
                   "HadoopJarStep": {
                     "Jar": "command-runner.jar",
-                    "Args": ["bash", "-c", "s3://${Fn::ImportValue MyDataBucket1Name}/run-spark-job.sh"]
+                    "Args": ["bash", "-c", "s3://${Fn::ImportValue MyDataBucket1}/run-spark-job.sh"]
                   }
                 }
               },
@@ -129,7 +129,7 @@ Outputs:
     Description: The Glue ETL Job Name
     Value: !Ref GlueETLJob
     Export:
-      Name: MyGlueETLJobName
+      Name: MyGlueETLJob
 
   StateMachineArn:
     Description: The ARN of the Step Functions State Machine
