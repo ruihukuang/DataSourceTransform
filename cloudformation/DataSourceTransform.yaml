@@ -56,12 +56,25 @@ Resources:
   TriggerLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: lambda_function.lambda_handler
+      Handler: lambda_stepfunction.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: scriptbucket
         S3Key: lambda_stepfunction.py
       Runtime: python3.8
+      Layers:
+        - !Ref LambdaLayer
+
+  # Lambda Layer for Dependencies
+  LambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: MyDependenciesLayer
+      Content:
+        S3Bucket: scriptbucket
+        S3Key: dependencies_package.zip
+      CompatibleRuntimes:
+        - python3.8
 
   # IAM Role for Lambda Function
   LambdaExecutionRole:
@@ -91,12 +104,12 @@ Resources:
       Role: !GetAtt GlueServiceRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub 's3://${DataBucket1}/scripts/glue-etl-script.py'
+        ScriptLocation: !Sub 's3://${DataBucket1}/glue-etl-script.py'
         PythonVersion: '3'
       DefaultArguments:
         --TempDir: !Sub 's3://${DataBucket1}/temp/'
         --job-bookmark-option: 'job-bookmark-enable'
-        --extra-py-files: 's3://your-bucket/path/to/your-library.whl'
+        --extra-py-files: 's3://${DataBucket1}/glue-library.whl'
       GlueVersion: '2.0'
       MaxCapacity: 2.0
 
@@ -174,7 +187,7 @@ Resources:
                   "ActionOnFailure": "CONTINUE",
                   "HadoopJarStep": {
                     "Jar": "command-runner.jar",
-                    "Args": ["bash", "-c", "s3://${DataBucket2}/path/to/run-spark-job.sh"]
+                    "Args": ["bash", "-c", "s3://${DataBucket1}/run-spark-job.sh"]
                   }
                 }
               },
