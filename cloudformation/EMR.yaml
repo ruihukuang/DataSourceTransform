@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
 
+Parameters:
+  DataBucket1:
+    Type: String
+    Description: The name of the first S3 bucket for data storage
+  DataBucket2:
+    Type: String
+    Description: The name of the second S3 bucket for data storage
+
 Resources:
   # VPC
   VPC:
@@ -107,40 +115,7 @@ Resources:
           ToPort: 65535
           CidrIp: 10.0.0.0/16
 
-  # EMR Cluster
-  EMRCluster:
-    Type: AWS::EMR::Cluster
-    Properties:
-      Name: MyEMRCluster
-      Instances:
-        InstanceGroups:
-          - Name: Master
-            Market: ON_DEMAND
-            InstanceRole: MASTER
-            InstanceType: m3.medium
-            InstanceCount: 1
-          - Name: Core
-            Market: ON_DEMAND
-            InstanceRole: CORE
-            InstanceType: m3.medium
-            InstanceCount: 2
-        Ec2SubnetId: !Ref PrivateSubnet
-        Ec2KeyName: my-key-pair # Need to create this in AWS and use here
-        KeepJobFlowAliveWhenNoSteps: true
-      JobFlowRole: !Ref EMRClusterRole
-      ServiceRole: EMR_DefaultRole
-      ReleaseLabel: emr-6.3.0
-      Applications:
-        - Name: Hadoop
-        - Name: Spark
-      Configurations:
-        - Classification: spark
-          Properties:
-            maximizeResourceAllocation: "true"
-      VisibleToAllUsers: true
-      LogUri: !Sub 's3://${DataBucket1}/logs/'
-      
- # IAM Role for EMR Cluster with S3 Access
+  # IAM Role for EMR Cluster with S3 Access
   EMRClusterRole:
     Type: AWS::IAM::Role
     Properties:
@@ -166,3 +141,50 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${DataBucket1}/*'
                   - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+
+  # EMR Cluster
+  EMRCluster:
+    Type: AWS::EMR::Cluster
+    Properties:
+      Name: MyEMRCluster
+      Instances:
+        InstanceGroups:
+          - Name: Master
+            Market: ON_DEMAND
+            InstanceRole: MASTER
+            InstanceType: m3.medium
+            InstanceCount: 1
+          - Name: Core
+            Market: ON_DEMAND
+            InstanceRole: CORE
+            InstanceType: m3.medium
+            InstanceCount: 2
+        Ec2SubnetId: !Ref PrivateSubnet
+        Ec2KeyName: my-key-pair # Ensure this key pair exists
+        KeepJobFlowAliveWhenNoSteps: true
+      JobFlowRole: !Ref EMRClusterRole
+      ServiceRole: !Ref EMRServiceRole
+      ReleaseLabel: emr-6.3.0
+      Applications:
+        - Name: Hadoop
+        - Name: Spark
+      Configurations:
+        - Classification: spark
+          Properties:
+            maximizeResourceAllocation: "true"
+      VisibleToAllUsers: true
+      LogUri: !Sub 's3://${DataBucket1}/logs/'
+
+  # IAM Role for EMR Service
+  EMRServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
