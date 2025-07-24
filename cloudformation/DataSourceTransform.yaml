@@ -60,7 +60,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: scriptbucket
-        S3Key: path/to/your/lambda_function.py
+        S3Key: lambda_stepfunction.py
       Runtime: python3.8
 
   # IAM Role for Lambda Function
@@ -202,6 +202,17 @@ Resources:
                 Action:
                   - glue:StartJobRun
                   - glue:GetJobRun
+                Resource: '*'
+        - PolicyName: StepFunctionsEMRPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticmapreduce:RunJobFlow
+                  - elasticmapreduce:DescribeCluster
+                  - elasticmapreduce:ListSteps
+                  - elasticmapreduce:AddJobFlowSteps
                 Resource: '*'
 
 Outputs:
