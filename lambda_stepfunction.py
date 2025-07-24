@@ -1,9 +1,14 @@
+import os
 import json
 import boto3
 
 def lambda_handler(event, context):
     # Initialize the Step Functions client
     stepfunctions_client = boto3.client('stepfunctions')
+    
+    # Retrieve region and account ID from environment variables
+    region = os.environ['REGION']
+    account_id = os.environ['ACCOUNT_ID']
     
     # Extract the bucket name and object key from the S3 event
     for record in event['Records']:
@@ -21,12 +26,12 @@ def lambda_handler(event, context):
         
         # Start the Step Functions execution
         response = stepfunctions_client.start_execution(
-            stateMachineArn='arn:aws:states:REGION:ACCOUNT_ID:stateMachine:YourStateMachineName',
+            stateMachineArn=f'arn:aws:states:{region}:{account_id}:stateMachine:YourStateMachineName',
             input=json.dumps(input_data)
         )
         
         # Log the response from Step Functions
-        print(f"Step Functions execution started: {response['executionArn']}")
+        print(f"Step Functions execution started: {response["executionArn"]}")
     
     return {
         'statusCode': 200,
