@@ -159,6 +159,10 @@ Resources:
       Runtime: python3.8
       Layers:
         - !Ref LambdaLayer
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          ACCOUNT_ID: !Ref AWS::AccountId
 
   # Lambda Layer for Dependencies
   LambdaLayer:
