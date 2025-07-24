@@ -16,6 +16,7 @@ spark-submit \
     --conf spark.sql.parquet.enableVectorizedReader=false \
     --conf spark.sql.parquet.int96RebaseModeInWrite=CORRECTED \
     --conf spark.sql.legacy.timeParserPolicy=LEGACY \
+    --py-files s3://your-bucket/path/to/your-library.zip
     --master ${MASTER} \
     --deploy-mode cluster \
     --executor-memory 12G \
