@@ -96,6 +96,7 @@ Resources:
       DefaultArguments:
         --TempDir: !Sub 's3://${DataBucket1}/temp/'
         --job-bookmark-option: 'job-bookmark-enable'
+        --extra-py-files: 's3://your-bucket/path/to/your-library.whl'
       GlueVersion: '2.0'
       MaxCapacity: 2.0
 
