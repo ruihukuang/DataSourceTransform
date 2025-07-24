@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS and Step Functions
+
 Resources:
   # VPC
   VPC:
@@ -38,10 +39,50 @@ Resources:
   # First S3 Bucket for triggering events
   DataBucket1:
     Type: AWS::S3::Bucket
+    Properties:
+      BucketName: scriptbucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt TriggerLambdaFunction.Arn
 
   # Second S3 Bucket for triggering events
   DataBucket2:
     Type: AWS::S3::Bucket
+    Properties:
+      BucketName: databucket
+
+  # Lambda Function to trigger Step Functions
+  TriggerLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: scriptbucket
+        S3Key: path/to/your/lambda_function.py
+      Runtime: python3.8
+
+  # IAM Role for Lambda Function
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaStepFunctionsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource: 'arn:aws:states:REGION:ACCOUNT_ID:stateMachine:YourStateMachineName'
 
   # Glue ETL Job
   GlueETLJob:
