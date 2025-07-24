@@ -272,7 +272,7 @@ Resources:
             InstanceType: m3.medium
             InstanceCount: 2
         Ec2SubnetId: !Ref PrivateSubnet
-        Ec2KeyName: my-key-pair
+        Ec2KeyName: my-key-pair # Need to create this in AWS and use here
         KeepJobFlowAliveWhenNoSteps: true
       JobFlowRole: EMR_EC2_DefaultRole
       ServiceRole: EMR_DefaultRole
