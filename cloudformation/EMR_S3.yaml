@@ -188,3 +188,19 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
+
+  # First S3 Bucket for triggering events
+  DataBucket1:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: scriptbucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt TriggerLambdaFunction.Arn
+
+  # Second S3 Bucket for triggering events
+  DataBucket2:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: databucket
