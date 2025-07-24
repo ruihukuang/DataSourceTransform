@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
+
+Resources:
+  # Glue ETL Job
+  GlueETLJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !GetAtt GlueServiceRole.Arn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub 's3://${DataBucket1}/glue-etl-script.py'
+        PythonVersion: '3'
+      DefaultArguments:
+        --TempDir: !Sub 's3://${DataBucket1}/temp/'
+        --job-bookmark-option: 'job-bookmark-enable'
+        --extra-py-files: 's3://${DataBucket1}/glue-library.whl'
+      GlueVersion: '2.0'
+      MaxCapacity: 2.0
+
+  # IAM Role for Glue
+  GlueServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GlueS3Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+
+ # IAM Role for Step Functions
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsGluePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                Resource: '*'
+        - PolicyName: StepFunctionsEMRPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticmapreduce:RunJobFlow
+                  - elasticmapreduce:DescribeCluster
+                  - elasticmapreduce:ListSteps
+                  - elasticmapreduce:AddJobFlowSteps
+                Resource: '*'
+        - PolicyName: StepFunctionsS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+
+  # Step Functions State Machine
+  MyStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "A simple AWS Step Functions state machine that executes Glue jobs in order.",
+          "StartAt": "GlueJob1",
+          "States": {
+            "GlueJob1": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "${GlueETLJob}"
+              },
+              "Next": "SparkJob2"
+            },
+            "SparkJob2": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+              "Parameters": {
+                "ClusterId": "${EMRCluster}",
+                "Step": {
+                  "Name": "SparkJob2",
+                  "ActionOnFailure": "CONTINUE",
+                  "HadoopJarStep": {
+                    "Jar": "command-runner.jar",
+                    "Args": ["bash", "-c", "s3://${DataBucket1}/run-spark-job.sh"]
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+
+Outputs:
+  StateMachineArn:
+    Description: ARN of the Step Functions State Machine
+    Value: !Ref MyStateMachine
+  RDSInstanceEndpoint:
+    Description: Endpoint of the RDS Instance
+    Value: !GetAtt RDSInstance.Endpoint.Address
