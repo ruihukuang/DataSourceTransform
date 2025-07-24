@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
-# EMR S3- Glue Step Function - RDS Lambda
+
 Parameters:
   DataBucket1:
     Type: String
@@ -204,3 +204,40 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: databucket
+
+Outputs:
+  VPCId:
+    Description: The VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: MyVPCId
+
+  PublicSubnetId:
+    Description: The Public Subnet ID
+    Value: !Ref PublicSubnet
+    Export:
+      Name: MyPublicSubnetId
+
+  PrivateSubnetId:
+    Description: The Private Subnet ID
+    Value: !Ref PrivateSubnet
+    Export:
+      Name: MyPrivateSubnetId
+
+  EMRClusterId:
+    Description: The EMR Cluster ID
+    Value: !Ref EMRCluster
+    Export:
+      Name: MyEMRClusterId
+
+  DataBucket1Name:
+    Description: The name of the first S3 bucket
+    Value: !Ref DataBucket1
+    Export:
+      Name: MyDataBucket1
+
+  DataBucket2Name:
+    Description: The name of the second S3 bucket
+    Value: !Ref DataBucket2
+    Export:
+      Name: MyDataBucket2
