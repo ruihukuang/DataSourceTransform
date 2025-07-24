@@ -1,1 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS and Step Functions
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
 
+  # Private Subnet
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet
+
+  # Security Group for RDS
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow internal traffic
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 10.0.0.0/16
+
+  # First S3 Bucket for triggering events
+  DataBucket1:
+    Type: AWS::S3::Bucket
+
+  # Second S3 Bucket for triggering events
+  DataBucket2:
+    Type: AWS::S3::Bucket
+
+  # Glue ETL Job
+  GlueETLJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !GetAtt GlueServiceRole.Arn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub 's3://${DataBucket1}/scripts/glue-etl-script.py'
+        PythonVersion: '3'
+      DefaultArguments:
+        --TempDir: !Sub 's3://${DataBucket1}/temp/'
+        --job-bookmark-option: 'job-bookmark-enable'
+      GlueVersion: '2.0'
+      MaxCapacity: 2.0
+
+  # IAM Role for Glue
+  GlueServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GlueS3Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+
+  # RDS Instance
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 2
+      DBName: MyDatabase
+      Engine: mysql
+      MasterUsername: admin
+      MasterUserPassword: Password123
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+
+  # RDS Subnet Group
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS
+      SubnetIds:
+        - !Ref PrivateSubnet
+
+  # Step Functions State Machine
+  MyStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "A simple AWS Step Functions state machine that executes Glue jobs in order.",
+          "StartAt": "GlueJob1",
+          "States": {
+            "GlueJob1": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "${GlueETLJob}"
+              },
+              "Next": "SparkJob2"
+            },
+            "SparkJob2": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+              "Parameters": {
+                "ClusterId": "${EMRCluster}",
+                "Step": {
+                  "Name": "SparkJob2",
+                  "ActionOnFailure": "CONTINUE",
+                  "HadoopJarStep": {
+                    "Jar": "command-runner.jar",
+                    "Args": ["bash", "-c", "s3://${DataBucket2}/path/to/run-spark-job.sh"]
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+
+  # IAM Role for Step Functions
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsGluePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                Resource: '*'
+
+Outputs:
+  BucketName1:
+    Description: Name of the first S3 Bucket
+    Value: !Ref DataBucket1
+  BucketName2:
+    Description: Name of the second S3 Bucket
+    Value: !Ref DataBucket2
+  StateMachineArn:
+    Description: ARN of the Step Functions State Machine
+    Value: !Ref MyStateMachine
+  RDSInstanceEndpoint:
+    Description: Endpoint of the RDS Instance
+    Value: !GetAtt RDSInstance.Endpoint.Address
