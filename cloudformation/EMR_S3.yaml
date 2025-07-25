@@ -165,7 +165,7 @@ Resources:
           Properties:
             maximizeResourceAllocation: "true"
       VisibleToAllUsers: true
-      LogUri: !Sub 's3://logkuangju87' #This must be created before creating EMR
+      LogUri: 's3://logkuangju87' #This must be created before creating EMR
 
   # IAM Role for EMR Service
   EMRServiceRole:
