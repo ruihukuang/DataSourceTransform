@@ -185,13 +185,13 @@ Resources:
   DataBucket1:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: scriptbucket
+      BucketName: scriptbucket_KuangJu87
 
   # Second S3 Bucket for data
   DataBucket2:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: databucket
+      BucketName: databucket_KuangJu87
 
 Outputs:
   VPCId:
