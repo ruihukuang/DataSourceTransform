@@ -15,6 +15,9 @@ Resources:
         --TempDir: !Sub 's3://${Fn::ImportValue MyDataBucket1}/temp/'
         --job-bookmark-option: 'job-bookmark-enable'
         --extra-py-files: !Sub 's3://${Fn::ImportValue MyDataBucket1}/glue-library.whl'
+        --ENV_INPUT_BUCKET: !ImportValue MyDataBucket2
+        --ENV_OUTPUT_BUCKET: !ImportValue MyDataBucket1
+        --ENV_JOB_NAME: !Ref GlueETLJob
       GlueVersion: '2.0'
       MaxCapacity: 2.0
 
