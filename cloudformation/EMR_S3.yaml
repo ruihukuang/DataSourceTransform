@@ -209,8 +209,8 @@ Resources:
           - Effect: Allow
             Principal:
               AWS:
-                - arn:aws:iam::<account-id>:role/EMRClusterRole
-                - arn:aws:iam::<account-id>:role/EMRServiceRole
+                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
             Action:
               - s3:*
             Resource:
