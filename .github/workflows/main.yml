@@ -24,12 +24,18 @@ jobs:
     - name: Check CloudFormation stack status for EMR and S3
       id: check_status
       run: |
-        STACK_STATUS=$(aws cloudformation describe-stacks --stack-name MyEMRS3 --query "Stacks[0].StackStatus" --output text)
-        echo "Stack status for EMR and S3: $STACK_STATUS"
-        echo "::set-output name=status::$STACK_STATUS"
+        STACK_NAME="MyEMRS3"
+        STACK_STATUS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].StackStatus" --output text 2>&1 || echo "STACK_DOES_NOT_EXIST")
+        if [[ "$STACK_STATUS" == "STACK_DOES_NOT_EXIST" ]]; then
+          echo "Stack $STACK_NAME does not exist."
+          echo "::set-output name=status::NOT_FOUND"
+        else
+          echo "Stack status for EMR and S3: $STACK_STATUS"
+          echo "::set-output name=status::$STACK_STATUS"
+        fi
 
     - name: Delete CloudFormation stack EMR and S3
-      if: steps.check_status.outputs.status != 'CREATE_COMPLETE'
+      if: steps.check_status.outputs.status != 'CREATE_COMPLETE' && steps.check_status.outputs.status != 'NOT_FOUND'
       run: |
         echo "Deleting stack MyEMRS3 because status is ${{ steps.check_status.outputs.status }}"
         aws cloudformation delete-stack --stack-name MyEMRS3
@@ -46,12 +52,18 @@ jobs:
     - name: Check CloudFormation stack status for Glue and Step function
       id: check_status_1
       run: |
-        STACK_STATUS_1=$(aws cloudformation describe-stacks --stack-name MyGlueStepFunction --query "Stacks[0].StackStatus" --output text)
-        echo "Stack status for Glue and Step Function: $STACK_STATUS_1"
-        echo "::set-output name=status_1::$STACK_STATUS_1"
+        STACK_NAME="MyGlueStepFunction"
+        STACK_STATUS_1=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].StackStatus" --output text 2>&1 || echo "STACK_DOES_NOT_EXIST")
+        if [[ "$STACK_STATUS_1" == "STACK_DOES_NOT_EXIST" ]]; then
+          echo "Stack $STACK_NAME does not exist."
+          echo "::set-output name=status_1::NOT_FOUND"
+        else
+          echo "Stack status for Glue and Step Function: $STACK_STATUS_1"
+          echo "::set-output name=status_1::$STACK_STATUS_1"
+        fi
 
     - name: Delete CloudFormation stack Glue and Step function
-      if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE'
+      if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE' && steps.check_status_1.outputs.status_1 != 'NOT_FOUND'
       run: |
         echo "Deleting stack MyGlueStepFunction because status is ${{ steps.check_status_1.outputs.status_1 }}"
         aws cloudformation delete-stack --stack-name MyGlueStepFunction
@@ -68,12 +80,18 @@ jobs:
     - name: Check CloudFormation stack status for RDS Lambda and Secret Manager
       id: check_status_2
       run: |
-        STACK_STATUS_2=$(aws cloudformation describe-stacks --stack-name MyRdsLambdaSecretManager --query "Stacks[0].StackStatus" --output text)
-        echo "Stack status for RDS Lambda and Secret Manager: $STACK_STATUS_2"
-        echo "::set-output name=status_2::$STACK_STATUS_2"
+        STACK_NAME="MyRdsLambdaSecretManager"
+        STACK_STATUS_2=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].StackStatus" --output text 2>&1 || echo "STACK_DOES_NOT_EXIST")
+        if [[ "$STACK_STATUS_2" == "STACK_DOES_NOT_EXIST" ]]; then
+          echo "Stack $STACK_NAME does not exist."
+          echo "::set-output name=status_2::NOT_FOUND"
+        else
+          echo "Stack status for RDS Lambda Secret Manager: $STACK_STATUS_2"
+          echo "::set-output name=status_2::$STACK_STATUS_2"
+        fi
 
     - name: Delete CloudFormation stack
-      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE'
+      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
         echo "Deleting stack MyRdsLambdaSecretManager because status is ${{ steps.check_status_2.outputs.status_2 }}"
         aws cloudformation delete-stack --stack-name MyRdsLambdaSecretManager
