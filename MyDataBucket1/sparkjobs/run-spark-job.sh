@@ -7,8 +7,8 @@ spark-submit \
     --conf spark.rdd.compress=true \
     --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
     --conf spark.sql.parquet.writeLegacyFormat=true \
-    --conf spark.task.maxFailures=30 \
-    --conf spark.yarn.max.executor.failures=200 \
+    --conf spark.task.maxFailures=10 \
+    --conf spark.yarn.max.executor.failures=20 \
     --conf spark.executor.extraJavaOptions="-XX:+UseG1GC" \
     --conf spark.sql.hive.caseSensitiveInferenceMode=NEVER_INFER \
     --conf spark.sql.parquet.int96RebaseModeInRead=CORRECTED \
