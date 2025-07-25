@@ -198,6 +198,25 @@ Resources:
                   - 'arn:aws:s3:::logkuangju87'
                   - 'arn:aws:s3:::logkuangju87/*'
 
+  # Bucket Policy for logkuangju87
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: logkuangju87
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::<account-id>:role/EMRClusterRole
+                - arn:aws:iam::<account-id>:role/EMRServiceRole
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::logkuangju87
+              - arn:aws:s3:::logkuangju87/*
+            
   # First S3 Bucket for scripts
   DataBucket1:
     Type: AWS::S3::Bucket
