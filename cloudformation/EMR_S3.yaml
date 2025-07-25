@@ -127,12 +127,14 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:ListBucket
+                  - s3:*
                 Resource:
+                  - !Sub 'arn:aws:s3:::${DataBucket1}'
                   - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}'
                   - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+                  - 'arn:aws:s3:::logkuangju87'
+                  - 'arn:aws:s3:::logkuangju87/*'
 
   # EMR Cluster
   EMRCluster:
@@ -165,7 +167,7 @@ Resources:
           Properties:
             maximizeResourceAllocation: "true"
       VisibleToAllUsers: true
-      LogUri: 's3://logkuangju87' #This must be created before creating EMR
+      LogUri: 'arn:aws:s3:::logkuangju87' #This must be created before creating EMR
 
   # IAM Role for EMR Service
   EMRServiceRole:
@@ -180,6 +182,21 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
+      Policies:
+        - PolicyName: EMRS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataBucket1}'
+                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}'
+                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+                  - 'arn:aws:s3:::logkuangju87'
+                  - 'arn:aws:s3:::logkuangju87/*'
 
   # First S3 Bucket for scripts
   DataBucket1:
