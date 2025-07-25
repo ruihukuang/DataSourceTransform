@@ -229,6 +229,42 @@ Resources:
     Properties:
       BucketName: databucketkuangju87
 
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: scriptbucketkuangju87
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::scriptbucketkuangju87
+              - arn:aws:s3:::scriptbucketkuangju87/*
+
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: databucketkuangju87
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
+            Action:
+              - s3:*
+            Resource:
+              - arn:aws:s3:::databucketkuangju87
+              - arn:aws:s3:::databucketkuangju87/*
+
 Outputs:
   VPCId:
     Description: The VPC ID
