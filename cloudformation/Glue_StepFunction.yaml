@@ -118,7 +118,7 @@ Resources:
                   "ActionOnFailure": "CONTINUE",
                   "HadoopJarStep": {
                     "Jar": "command-runner.jar",
-                    "Args": ["bash", "-c", "s3://${Fn::ImportValue MyDataBucket1}/run-spark-job.sh"]
+                    "Args": ["bash", "-c", "s3://${Fn::ImportValue MyDataBucket1}/sparkjobs/run-spark-job.sh"]
                   }
                 }
               },
