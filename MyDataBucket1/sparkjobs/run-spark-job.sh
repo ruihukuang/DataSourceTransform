@@ -16,13 +16,13 @@ spark-submit \
     --conf spark.sql.parquet.enableVectorizedReader=false \
     --conf spark.sql.parquet.int96RebaseModeInWrite=CORRECTED \
     --conf spark.sql.legacy.timeParserPolicy=LEGACY \
-    --py-files s3://scriptbucket/requests-2.32.4.zip \
+    --py-files s3://scriptbucketkuangju87/requests-2.32.4.zip \
     --master ${MASTER} \
     --deploy-mode cluster \
     --executor-memory 1G \
     --executor-cores 2 \
     --num-executors 5 \
-    s3://scriptbucket_KuangJu87/sparkjobs/sparkjob1.py \
-    s3://databucket_KuangJu87/data.csv \
+    s3://scriptbucketkuangju87/sparkjobs/sparkjob1.py \
+    s3://databucketkuangju87/data.csv \
     https://your-endpoint.com/api/data \
     10
