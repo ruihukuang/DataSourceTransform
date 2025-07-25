@@ -1,0 +1,92 @@
+name: Deploy EKS Cluster
+
+on:
+ workflow_dispatch:
+      
+permissions:
+      id-token: write   # This is required for requesting the JWT
+      contents: read 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+         role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/${{ secrets.ROLE_NAME }}
+         aws-region: ${{ secrets.REGION }}
+
+    - name: Check CloudFormation stack status for EMR and S3
+      id: check_status
+      run: |
+        STACK_STATUS=$(aws cloudformation describe-stacks --stack-name MyEMRS3 --query "Stacks[0].StackStatus" --output text)
+        echo "Stack status for EMR and S3: $STACK_STATUS"
+        echo "::set-output name=status::$STACK_STATUS"
+
+    - name: Delete CloudFormation stack EMR and S3
+      if: steps.check_status.outputs.status != 'CREATE_COMPLETE'
+      run: |
+        echo "Deleting stack MyEMRS3 because status is ${{ steps.check_status.outputs.status }}"
+        aws cloudformation delete-stack --stack-name MyEMRS3
+        aws cloudformation wait stack-delete-complete --stack-name MyEMRS3
+ 
+    - name: Deploy EMR and S3 using CloudFormation
+      run: |
+        aws cloudformation deploy \
+          --template-file cloudformation/EMR_S3.yaml \
+          --stack-name MyEMRS3 \
+          --capabilities CAPABILITY_NAMED_IAM
+        aws cloudformation wait stack-create-complete --stack-name MyEMRS3
+
+    - name: Check CloudFormation stack status for Glue and Step function
+      id: check_status_1
+      run: |
+        STACK_STATUS_1=$(aws cloudformation describe-stacks --stack-name MyGlueStepFunction --query "Stacks[0].StackStatus" --output text)
+        echo "Stack status for Glue and Step Function: $STACK_STATUS_1"
+        echo "::set-output name=status_1::$STACK_STATUS_1"
+
+    - name: Delete CloudFormation stack Glue and Step function
+      if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE'
+      run: |
+        echo "Deleting stack MyGlueStepFunction because status is ${{ steps.check_status_1.outputs.status_1 }}"
+        aws cloudformation delete-stack --stack-name MyGlueStepFunction
+        aws cloudformation wait stack-delete-complete --stack-name MyGlueStepFunction
+ 
+    - name: Deploy Glue and Step function using CloudFormation
+      run: |
+        aws cloudformation deploy \
+          --template-file cloudformation/Glue_StepFunction.yaml \
+          --stack-name MyGlueStepFunction \
+          --capabilities CAPABILITY_NAMED_IAM
+        aws cloudformation wait stack-create-complete --stack-name MyGlueStepFunction
+
+    - name: Check CloudFormation stack status for RDS Lambda and Secret Manager
+      id: check_status_2
+      run: |
+        STACK_STATUS_2=$(aws cloudformation describe-stacks --stack-name MyRdsLambdaSecretManager --query "Stacks[0].StackStatus" --output text)
+        echo "Stack status for RDS Lambda and Secret Manager: $STACK_STATUS_2"
+        echo "::set-output name=status_2::$STACK_STATUS_2"
+
+    - name: Delete CloudFormation stack
+      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE'
+      run: |
+        echo "Deleting stack MyRdsLambdaSecretManager because status is ${{ steps.check_status_2.outputs.status_2 }}"
+        aws cloudformation delete-stack --stack-name MyRdsLambdaSecretManager
+        aws cloudformation wait stack-delete-complete --stack-name MyRdsLambdaSecretManager
+ 
+    - name: Deploy Glue and Step function using CloudFormation
+      run: |
+        aws cloudformation deploy \
+          --template-file cloudformation/RDS_Lambda_SecretManager.yaml \
+          --stack-name MyRdsLambdaSecretManager \
+          --capabilities CAPABILITY_NAMED_IAM
+        aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
+
+    - name: Sync S3 bucket
+      run: |
+        aws s3 sync MyDataBucket1/ s3://scriptbucket
