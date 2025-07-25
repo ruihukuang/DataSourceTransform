@@ -22,7 +22,7 @@ spark-submit \
     --executor-memory 12G \
     --executor-cores 3 \
     --num-executors 100 \
-    s3://your-bucket/path/to/your-spark-job.py \
-    s3://your-bucket/path/to/data \
+    s3://scriptbucket/sparkjobs/sparkjob1.py \
+    s3://databucket/data.csv \
     https://your-endpoint.com/api/data \
     10
