@@ -1,7 +1,7 @@
 
 
 spark-submit \
-    --conf spark.driver.memory=12G \
+    --conf spark.driver.memory=1G \
     --conf spark.dynamicAllocation.enabled=false \
     --conf spark.kryoserializer.buffer.max=512 \
     --conf spark.rdd.compress=true \
@@ -19,9 +19,9 @@ spark-submit \
     --py-files s3://your-bucket/path/to/your-library.zip
     --master ${MASTER} \
     --deploy-mode cluster \
-    --executor-memory 12G \
-    --executor-cores 3 \
-    --num-executors 100 \
+    --executor-memory 1G \
+    --executor-cores 2 \
+    --num-executors 5 \
     s3://scriptbucket/sparkjobs/sparkjob1.py \
     s3://databucket/data.csv \
     https://your-endpoint.com/api/data \
