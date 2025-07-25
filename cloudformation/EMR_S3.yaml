@@ -152,7 +152,7 @@ Resources:
             InstanceType: m3.medium
             InstanceCount: 2
         Ec2SubnetId: !Ref PrivateSubnet
-        Ec2KeyName: my-key-pair # Ensure this key pair exists
+        Ec2KeyName: MyEMR # Ensure this key pair exists
         KeepJobFlowAliveWhenNoSteps: true
       JobFlowRole: !Ref EMRClusterRole
       ServiceRole: !Ref EMRServiceRole
