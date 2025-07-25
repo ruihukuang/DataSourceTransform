@@ -1,4 +1,4 @@
-name: Deploy EKS Cluster
+name: Deploy a workflow in Source Account to process and send data
 
 on:
  workflow_dispatch:
