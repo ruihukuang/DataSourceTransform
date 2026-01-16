@@ -71,10 +71,6 @@ Resources:
       SubnetId: !Ref PublicSubnet
       AllocationId: !GetAtt EIP.AllocationId
 
-  EIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
 
   # Private Route Table
   PrivateRouteTable:
@@ -95,108 +91,108 @@ Resources:
       SubnetId: !Ref PrivateSubnet
       RouteTableId: !Ref PrivateRouteTable
 
-  # Security Group for EMR
-  EMRSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow EMR traffic
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
-          CidrIp: 10.0.0.0/16
+  # # Security Group for EMR
+  # EMRSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Allow EMR traffic
+  #     VpcId: !Ref VPC
+  #     SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: 0
+  #         ToPort: 65535
+  #         CidrIp: 10.0.0.0/16
 
-  # IAM Role for EMR Cluster with S3 Access
-  EMRClusterRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
-      Policies:
-        - PolicyName: EMRS3AccessPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:*
-                Resource:
-                  - !Sub 'arn:aws:s3:::${DataBucket1}'
-                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
-                  - 'arn:aws:s3:::logkuangju87'
-                  - 'arn:aws:s3:::logkuangju87/*'
+  # # IAM Role for EMR Cluster with S3 Access
+  # EMRClusterRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: ec2.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
+  #     Policies:
+  #       - PolicyName: EMRS3AccessPolicy
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - s3:*
+  #               Resource:
+  #                 - !Sub 'arn:aws:s3:::${DataBucket1}'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket2}'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+  #                 - 'arn:aws:s3:::logkuangju87'
+  #                 - 'arn:aws:s3:::logkuangju87/*'
 
-  # EMR Cluster
-  EMRCluster:
-    Type: AWS::EMR::Cluster
-    Properties:
-      Name: MyEMRCluster
-      Instances:
-        InstanceGroups:
-          - Name: Master
-            Market: ON_DEMAND
-            InstanceRole: MASTER
-            InstanceType: m3.medium
-            InstanceCount: 1
-          - Name: Core
-            Market: ON_DEMAND
-            InstanceRole: CORE
-            InstanceType: m3.medium
-            InstanceCount: 2
-        Ec2SubnetId: !Ref PrivateSubnet
-        Ec2KeyName: MyEMR # Ensure this key pair exists
-        KeepJobFlowAliveWhenNoSteps: true
-      JobFlowRole: !Ref EMRClusterRole
-      ServiceRole: !Ref EMRServiceRole
-      ReleaseLabel: emr-6.3.0
-      Applications:
-        - Name: Hadoop
-        - Name: Spark
-      Configurations:
-        - Classification: spark
-          Properties:
-            maximizeResourceAllocation: "true"
-      VisibleToAllUsers: true
-      LogUri: 's3://logkuangju87' #This must be created before creating EMR
+  # # EMR Cluster
+  # EMRCluster:
+  #   Type: AWS::EMR::Cluster
+  #   Properties:
+  #     Name: MyEMRCluster
+  #     Instances:
+  #       InstanceGroups:
+  #         - Name: Master
+  #           Market: ON_DEMAND
+  #           InstanceRole: MASTER
+  #           InstanceType: m3.medium
+  #           InstanceCount: 1
+  #         - Name: Core
+  #           Market: ON_DEMAND
+  #           InstanceRole: CORE
+  #           InstanceType: m3.medium
+  #           InstanceCount: 2
+  #       Ec2SubnetId: !Ref PrivateSubnet
+  #       Ec2KeyName: MyEMR # Ensure this key pair exists
+  #       KeepJobFlowAliveWhenNoSteps: true
+  #     JobFlowRole: !Ref EMRClusterRole
+  #     ServiceRole: !Ref EMRServiceRole
+  #     ReleaseLabel: emr-6.3.0
+  #     Applications:
+  #       - Name: Hadoop
+  #       - Name: Spark
+  #     Configurations:
+  #       - Classification: spark
+  #         Properties:
+  #           maximizeResourceAllocation: "true"
+  #     VisibleToAllUsers: true
+  #     LogUri: 's3://logkuangju87' #This must be created before creating EMR
 
-  # IAM Role for EMR Service
-  EMRServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: elasticmapreduce.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
-      Policies:
-        - PolicyName: EMRS3AccessPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:*
-                Resource:
-                  - !Sub 'arn:aws:s3:::${DataBucket1}'
-                  - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}'
-                  - !Sub 'arn:aws:s3:::${DataBucket2}/*'
-                  - 'arn:aws:s3:::logkuangju87'
-                  - 'arn:aws:s3:::logkuangju87/*'
+  # # IAM Role for EMR Service
+  # EMRServiceRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: elasticmapreduce.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
+  #     Policies:
+  #       - PolicyName: EMRS3AccessPolicy
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - s3:*
+  #               Resource:
+  #                 - !Sub 'arn:aws:s3:::${DataBucket1}'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket1}/*'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket2}'
+  #                 - !Sub 'arn:aws:s3:::${DataBucket2}/*'
+  #                 - 'arn:aws:s3:::logkuangju87'
+  #                 - 'arn:aws:s3:::logkuangju87/*'
 
   # Bucket Policy for logkuangju87
   LogBucketPolicy:

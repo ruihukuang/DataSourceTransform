@@ -34,12 +34,12 @@ jobs:
           echo "::set-output name=status::$STACK_STATUS"
         fi
 
-    - name: Delete CloudFormation stack EMR and S3
-      if: steps.check_status.outputs.status != 'CREATE_COMPLETE' && steps.check_status.outputs.status != 'NOT_FOUND'
-      run: |
-        echo "Deleting stack MyEMRS3 because status is ${{ steps.check_status.outputs.status }}"
-        aws cloudformation delete-stack --stack-name MyEMRS3
-        aws cloudformation wait stack-delete-complete --stack-name MyEMRS3
+    # - name: Delete CloudFormation stack EMR and S3
+    #   if: steps.check_status.outputs.status != 'CREATE_COMPLETE' && steps.check_status.outputs.status != 'NOT_FOUND'
+    #   run: |
+    #     echo "Deleting stack MyEMRS3 because status is ${{ steps.check_status.outputs.status }}"
+    #     aws cloudformation delete-stack --stack-name MyEMRS3
+    #     aws cloudformation wait stack-delete-complete --stack-name MyEMRS3
  
     - name: Deploy EMR and S3 using CloudFormation
       run: |
@@ -62,12 +62,12 @@ jobs:
           echo "::set-output name=status_1::$STACK_STATUS_1"
         fi
 
-    - name: Delete CloudFormation stack Glue and Step function
-      if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE' && steps.check_status_1.outputs.status_1 != 'NOT_FOUND'
-      run: |
-        echo "Deleting stack MyGlueStepFunction because status is ${{ steps.check_status_1.outputs.status_1 }}"
-        aws cloudformation delete-stack --stack-name MyGlueStepFunction
-        aws cloudformation wait stack-delete-complete --stack-name MyGlueStepFunction
+    # - name: Delete CloudFormation stack Glue and Step function
+    #   if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE' && steps.check_status_1.outputs.status_1 != 'NOT_FOUND'
+    #   run: |
+    #     echo "Deleting stack MyGlueStepFunction because status is ${{ steps.check_status_1.outputs.status_1 }}"
+    #     aws cloudformation delete-stack --stack-name MyGlueStepFunction
+    #     aws cloudformation wait stack-delete-complete --stack-name MyGlueStepFunction
  
     - name: Deploy Glue and Step function using CloudFormation
       run: |
@@ -90,12 +90,12 @@ jobs:
           echo "::set-output name=status_2::$STACK_STATUS_2"
         fi
 
-    - name: Delete CloudFormation stack
-      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
-      run: |
-        echo "Deleting stack MyRdsLambdaSecretManager because status is ${{ steps.check_status_2.outputs.status_2 }}"
-        aws cloudformation delete-stack --stack-name MyRdsLambdaSecretManager
-        aws cloudformation wait stack-delete-complete --stack-name MyRdsLambdaSecretManager
+    # - name: Delete CloudFormation stack
+    #   if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
+    #   run: |
+    #     echo "Deleting stack MyRdsLambdaSecretManager because status is ${{ steps.check_status_2.outputs.status_2 }}"
+    #     aws cloudformation delete-stack --stack-name MyRdsLambdaSecretManager
+    #     aws cloudformation wait stack-delete-complete --stack-name MyRdsLambdaSecretManager
  
     - name: Deploy Glue and Step function using CloudFormation
       run: |
