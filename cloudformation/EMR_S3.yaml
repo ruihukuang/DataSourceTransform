@@ -289,11 +289,11 @@ Outputs:
     Export:
       Name: MyPrivateSubnetId
 
-  EMRClusterId:
-    Description: The EMR Cluster ID
-    Value: !Ref EMRCluster
-    Export:
-      Name: MyEMRClusterId
+  # EMRClusterId:
+  #   Description: The EMR Cluster ID
+  #   Value: !Ref EMRCluster
+  #   Export:
+  #     Name: MyEMRClusterId
 
   DataBucket1Name:
     Description: The name of the first S3 bucket
