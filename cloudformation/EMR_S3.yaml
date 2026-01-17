@@ -234,7 +234,7 @@ Resources:
     Properties:
       BucketName: databucketkuangju87
 
-  LogBucketPolicy:
+  ScriptBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: scriptbucketkuangju87
@@ -252,7 +252,7 @@ Resources:
               - arn:aws:s3:::scriptbucketkuangju87
               - arn:aws:s3:::scriptbucketkuangju87/*
 
-  LogBucketPolicy:
+  DataBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: databucketkuangju87
