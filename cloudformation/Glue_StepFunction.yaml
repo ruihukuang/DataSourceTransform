@@ -144,20 +144,12 @@ Resources:
               "Type": "Task",
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": {
-                "JobName": "MyGlueETLJob",  # FIXED: Hardcoded job name instead of !Ref
+                "JobName": "MyGlueETLJob",  
                 "Arguments": {
                   "--job-bookmark-option": "job-bookmark-enable",
                   "--TempDir": "s3://${DataBucket1Name}/temp/"
                 }
               },
-              "Next": "SparkJob2",
-              "Catch": [
-                {
-                  "ErrorEquals": ["States.ALL"],
-                  "Next": "JobFailed"
-                }
-              ]
-            },
             "End": true,
             "Catch": [
                 {
