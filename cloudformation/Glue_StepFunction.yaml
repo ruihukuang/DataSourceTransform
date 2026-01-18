@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
+Description: CloudFormation template to set up an S3-triggered Glue ETL workflow
 
 Parameters:
   DataBucket1Name:
@@ -12,10 +12,11 @@ Parameters:
     Description: Name of the second S3 bucket
     Default: databucketkuangju87
     
-  EMRClusterId:
-    Type: String
-    Description: EMR Cluster ID
-    Default: j-XXXXXXXXXXXXX
+  # EMRClusterId parameter commented out since we're not using EMR
+  # EMRClusterId:
+  #   Type: String
+  #   Description: EMR Cluster ID
+  #   Default: j-XXXXXXXXXXXXX
 
 Resources:
   # IAM Role for Glue
@@ -49,10 +50,10 @@ Resources:
                   - !Sub 'arn:aws:s3:::${DataBucket2Name}'
                   - !Sub 'arn:aws:s3:::${DataBucket2Name}/*'
 
-  # Glue ETL Job (MOVED AFTER IAM ROLE but BEFORE State Machine)
+  # Glue ETL Job
   GlueETLJob:
     Type: AWS::Glue::Job
-    DependsOn: GlueServiceRole  # Explicit dependency
+    DependsOn: GlueServiceRole
     Properties:
       Name: MyGlueETLJob
       Role: !GetAtt GlueServiceRole.Arn
@@ -65,7 +66,6 @@ Resources:
         '--job-bookmark-option': 'job-bookmark-enable'
         '--ENV_INPUT_BUCKET': !Ref DataBucket2Name
         '--ENV_OUTPUT_BUCKET': !Ref DataBucket1Name
-        # '--ENV_JOB_NAME': !Ref GlueETLJob  # REMOVED self-reference
         '--job-language': 'python'
         '--enable-metrics': 'true'
       GlueVersion: '2.0'
@@ -73,10 +73,10 @@ Resources:
       NumberOfWorkers: 2
       MaxRetries: 0
 
-  # IAM Role for Step Functions
+  # IAM Role for Step Functions (Simplified - removed EMR permissions)
   StepFunctionsExecutionRole:
     Type: AWS::IAM::Role
-    DependsOn: GlueETLJob  # Wait for Glue job to be created
+    DependsOn: GlueETLJob
     Properties:
       RoleName: StepFunctionsExecutionRole
       AssumeRolePolicyDocument:
@@ -98,19 +98,20 @@ Resources:
                   - glue:GetJobRuns
                   - glue:BatchStopJobRun
                 Resource: !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/*'
-        - PolicyName: StepFunctionsEMRPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - elasticmapreduce:RunJobFlow
-                  - elasticmapreduce:DescribeCluster
-                  - elasticmapreduce:ListSteps
-                  - elasticmapreduce:AddJobFlowSteps
-                  - elasticmapreduce:DescribeStep
-                  - elasticmapreduce:CancelSteps
-                Resource: "*"
+        # EMR permissions commented out since we're not using EMR
+        # - PolicyName: StepFunctionsEMRPolicy
+        #   PolicyDocument:
+        #     Version: '2012-10-17'
+        #     Statement:
+        #       - Effect: Allow
+        #         Action:
+        #           - elasticmapreduce:RunJobFlow
+        #           - elasticmapreduce:DescribeCluster
+        #           - elasticmapreduce:ListSteps
+        #           - elasticmapreduce:AddJobFlowSteps
+        #           - elasticmapreduce:DescribeStep
+        #           - elasticmapreduce:CancelSteps
+        #         Resource: "*"
         - PolicyName: StepFunctionsS3AccessPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -126,32 +127,34 @@ Resources:
                   - !Sub 'arn:aws:s3:::${DataBucket2Name}'
                   - !Sub 'arn:aws:s3:::${DataBucket2Name}/*'
 
-  # Step Functions State Machine - USE HARDCODED JOB NAME
+  # Step Functions State Machine - Glue Only Workflow
+  # Note: SparkJob2 is disabled. To enable later:
+
   MyStateMachine:
     Type: AWS::StepFunctions::StateMachine
     DependsOn: 
       - StepFunctionsExecutionRole
       - GlueETLJob
     Properties:
-      StateMachineName: GlueEMRWorkflow
+      StateMachineName: GlueWorkflow
       RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
       DefinitionString: !Sub |
         {
-          "Comment": "A simple AWS Step Functions state machine that executes Glue jobs in order.",
+          "Comment": "A simple AWS Step Functions state machine that executes Glue jobs.",
           "StartAt": "GlueJob1",
           "States": {
             "GlueJob1": {
               "Type": "Task",
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": {
-                "JobName": "MyGlueETLJob",  
+                "JobName": "MyGlueETLJob",
                 "Arguments": {
                   "--job-bookmark-option": "job-bookmark-enable",
                   "--TempDir": "s3://${DataBucket1Name}/temp/"
                 }
               },
-            "End": true,
-            "Catch": [
+              "End": true,
+              "Catch": [
                 {
                   "ErrorEquals": ["States.ALL"],
                   "Next": "JobFailed"
@@ -165,29 +168,6 @@ Resources:
             }
           }
         }
-
-            # "SparkJob2": {
-            #   "Type": "Task",
-            #   "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
-            #   "Parameters": {
-            #     "ClusterId": "${EMRClusterId}",
-            #     "Step": {
-            #       "Name": "SparkJob2",
-            #       "ActionOnFailure": "CONTINUE",
-            #       "HadoopJarStep": {
-            #         "Jar": "command-runner.jar",
-            #         "Args": ["spark-submit", "--deploy-mode", "cluster", "s3://${DataBucket1Name}/sparkjobs/spark-job.py"]
-            #       }
-            #     }
-            #   },
-            #   "End": true,
-            #   "Catch": [
-            #     {
-            #       "ErrorEquals": ["States.ALL"],
-            #       "Next": "JobFailed"
-            #     }
-            #   ]
-            # }
 
 Outputs:
   GlueETLJobName:
