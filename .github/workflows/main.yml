@@ -96,12 +96,66 @@ jobs:
     #     echo "Deleting stack MyRdsLambdaSecretManager because status is ${{ steps.check_status_2.outputs.status_2 }}"
     #     aws cloudformation delete-stack --stack-name MyRdsLambdaSecretManager
     #     aws cloudformation wait stack-delete-complete --stack-name MyRdsLambdaSecretManager
+
+    - name: Create or Update RDS Secret
+      id: create-secret
+      run: |
+        # Generate secure password (or use one from GitHub secrets)
+        RDS_PASSWORD=$(openssl rand -base64 32)
+        
+        # Create secret JSON
+        SECRET_JSON=$(jq -n \
+          --arg username "admin" \
+          --arg password "$RDS_PASSWORD" \
+          --arg dbname "MyDatabase" \
+          --arg engine "mysql" \
+          --arg host "localhost" \
+          --arg port "3306" \
+          '{
+            "username": $username,
+            "password": $password,
+            "dbname": $dbname,
+            "engine": $engine,
+            "host": $host,
+            "port": $port,
+            "description": "RDS database credentials"
+          }')
+        
+        # Check if secret exists
+        if aws secretsmanager describe-secret --secret-id ${{ env.SECRET_NAME }} > /dev/null 2>&1; then
+          echo "Secret exists, updating..."
+          aws secretsmanager update-secret \
+            --secret-id ${{ env.SECRET_NAME }} \
+            --secret-string "$SECRET_JSON"
+        else
+          echo "Creating new secret..."
+          aws secretsmanager create-secret \
+            --name ${{ env.SECRET_NAME }} \
+            --description "RDS database credentials" \
+            --secret-string "$SECRET_JSON"
+        fi
+        
+        # Get the ARN of the secret
+        SECRET_ARN=$(aws secretsmanager describe-secret \
+          --secret-id ${{ env.SECRET_NAME }} \
+          --query ARN --output text)
+        
+        echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
  
-    - name: Deploy Glue and Step function using CloudFormation
+    - name: Deploy Lambda and RDS using CloudFormation
       run: |
         aws cloudformation deploy \
           --template-file cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
+          --parameter-overrides \
+            RDSSecretArn=${{ env.SECRET_ARN }} \
+            DBInstanceClass=db.t3.micro \
+            DBAllocatedStorage=5 \
+            DatabaseName=MyDatabase \
+            TableName=UploadedData \
+            DataBucket1Name=scriptbucketkuangju87 \
+            DataBucket2Name=databucketkuangju87 \
+            StateMachineArn=${{ secrets.STATE_MACHINE_ARN }} \
           --capabilities CAPABILITY_NAMED_IAM
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
