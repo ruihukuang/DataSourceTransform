@@ -157,7 +157,23 @@ Resources:
                   "Next": "JobFailed"
                 }
               ]
+            },
+            "End": true,
+            "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "JobFailed"
+                }
+              ]
+            },
+            "JobFailed": {
+              "Type": "Fail",
+              "Cause": "Job execution failed",
+              "Error": "WorkflowFailed"
             }
+          }
+        }
+
             # "SparkJob2": {
             #   "Type": "Task",
             #   "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
@@ -179,14 +195,7 @@ Resources:
             #       "Next": "JobFailed"
             #     }
             #   ]
-            # },
-            # "JobFailed": {
-            #   "Type": "Fail",
-            #   "Cause": "Job execution failed",
-            #   "Error": "WorkflowFailed"
             # }
-          }
-        }
 
 Outputs:
   GlueETLJobName:
