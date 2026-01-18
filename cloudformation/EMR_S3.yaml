@@ -203,24 +203,24 @@ Resources:
   #                 - 'arn:aws:s3:::logkuangju87'
   #                 - 'arn:aws:s3:::logkuangju87/*'
 
-  # Bucket Policy for logkuangju87
-  LogBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: logkuangju87
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-            Action:
-              - s3:*
-            Resource:
-              - arn:aws:s3:::logkuangju87
-              - arn:aws:s3:::logkuangju87/*
+  # # Bucket Policy for logkuangju87
+  # LogBucketPolicy:
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: logkuangju87
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             AWS:
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
+  #           Action:
+  #             - s3:*
+  #           Resource:
+  #             - arn:aws:s3:::logkuangju87
+  #             - arn:aws:s3:::logkuangju87/*
             
   # First S3 Bucket for scripts
   DataBucket1:
@@ -234,41 +234,41 @@ Resources:
     Properties:
       BucketName: databucketkuangju87
 
-  ScriptBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: scriptbucketkuangju87
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-            Action:
-              - s3:*
-            Resource:
-              - arn:aws:s3:::scriptbucketkuangju87
-              - arn:aws:s3:::scriptbucketkuangju87/*
+  # ScriptBucketPolicy:
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: scriptbucketkuangju87
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             AWS:
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
+  #           Action:
+  #             - s3:*
+  #           Resource:
+  #             - arn:aws:s3:::scriptbucketkuangju87
+  #             - arn:aws:s3:::scriptbucketkuangju87/*
 
-  DataBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: databucketkuangju87
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-                - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-            Action:
-              - s3:*
-            Resource:
-              - arn:aws:s3:::databucketkuangju87
-              - arn:aws:s3:::databucketkuangju87/*
+  # DataBucketPolicy:
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: databucketkuangju87
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             AWS:
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
+  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
+  #           Action:
+  #             - s3:*
+  #           Resource:
+  #             - arn:aws:s3:::databucketkuangju87
+  #             - arn:aws:s3:::databucketkuangju87/*
 
 Outputs:
   VPCId:
