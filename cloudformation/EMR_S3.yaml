@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to set up an S3-triggered Glue ETL workflow with RDS, Step Functions, and EMR
+Description: Updated VPC with 2 Private Subnets across 2 Availability Zones for RDS compliance.
 
 Resources:
   # VPC
@@ -23,27 +23,41 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
-  # Public Subnet
+  # Public Subnet (AZ 1)
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ] # Dynamically selects the first AZ
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: MyPublicSubnet
 
-  # Private Subnet
-  PrivateSubnet:
+  # Private Subnet 1 (AZ 1)
+  PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ] # Same AZ as Public
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: MyPrivateSubnet
+          Value: MyPrivateSubnet1
+
+  # NEW: Private Subnet 2 (AZ 2)
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ] # Dynamically selects the SECOND AZ
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyPrivateSubnet2
 
   # Public Route Table
   PublicRouteTable:
@@ -71,7 +85,6 @@ Resources:
       SubnetId: !Ref PublicSubnet
       AllocationId: !GetAtt EIP.AllocationId
 
-
   # Private Route Table
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
@@ -85,10 +98,17 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NATGateway
 
-  PrivateSubnetRouteTableAssociation:
+  # Associate BOTH subnets with the Private Route Table
+  PrivateSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
   # Elastic IP for NAT Gateway
@@ -99,210 +119,46 @@ Resources:
       Tags:
         - Key: Name
           Value: NATGatewayEIP
-
-  # # Security Group for EMR
-  # EMRSecurityGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupDescription: Allow EMR traffic
-  #     VpcId: !Ref VPC
-  #     SecurityGroupIngress:
-  #       - IpProtocol: tcp
-  #         FromPort: 0
-  #         ToPort: 65535
-  #         CidrIp: 10.0.0.0/16
-
-  # # IAM Role for EMR Cluster with S3 Access
-  # EMRClusterRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service: ec2.amazonaws.com
-  #           Action: sts:AssumeRole
-  #     ManagedPolicyArns:
-  #       - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
-  #     Policies:
-  #       - PolicyName: EMRS3AccessPolicy
-  #         PolicyDocument:
-  #           Version: '2012-10-17'
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - s3:*
-  #               Resource:
-  #                 - !Sub 'arn:aws:s3:::${DataBucket1}'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket2}'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket2}/*'
-  #                 - 'arn:aws:s3:::logkuangju87'
-  #                 - 'arn:aws:s3:::logkuangju87/*'
-
-  # # EMR Cluster
-  # EMRCluster:
-  #   Type: AWS::EMR::Cluster
-  #   Properties:
-  #     Name: MyEMRCluster
-  #     Instances:
-  #       InstanceGroups:
-  #         - Name: Master
-  #           Market: ON_DEMAND
-  #           InstanceRole: MASTER
-  #           InstanceType: m3.medium
-  #           InstanceCount: 1
-  #         - Name: Core
-  #           Market: ON_DEMAND
-  #           InstanceRole: CORE
-  #           InstanceType: m3.medium
-  #           InstanceCount: 2
-  #       Ec2SubnetId: !Ref PrivateSubnet
-  #       Ec2KeyName: MyEMR # Ensure this key pair exists
-  #       KeepJobFlowAliveWhenNoSteps: true
-  #     JobFlowRole: !Ref EMRClusterRole
-  #     ServiceRole: !Ref EMRServiceRole
-  #     ReleaseLabel: emr-6.3.0
-  #     Applications:
-  #       - Name: Hadoop
-  #       - Name: Spark
-  #     Configurations:
-  #       - Classification: spark
-  #         Properties:
-  #           maximizeResourceAllocation: "true"
-  #     VisibleToAllUsers: true
-  #     LogUri: 's3://logkuangju87' #This must be created before creating EMR
-
-  # # IAM Role for EMR Service
-  # EMRServiceRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service: elasticmapreduce.amazonaws.com
-  #           Action: sts:AssumeRole
-  #     ManagedPolicyArns:
-  #       - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
-  #     Policies:
-  #       - PolicyName: EMRS3AccessPolicy
-  #         PolicyDocument:
-  #           Version: '2012-10-17'
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - s3:*
-  #               Resource:
-  #                 - !Sub 'arn:aws:s3:::${DataBucket1}'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket1}/*'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket2}'
-  #                 - !Sub 'arn:aws:s3:::${DataBucket2}/*'
-  #                 - 'arn:aws:s3:::logkuangju87'
-  #                 - 'arn:aws:s3:::logkuangju87/*'
-
-  # # Bucket Policy for logkuangju87
-  # LogBucketPolicy:
-  #   Type: AWS::S3::BucketPolicy
-  #   Properties:
-  #     Bucket: logkuangju87
-  #     PolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             AWS:
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-  #           Action:
-  #             - s3:*
-  #           Resource:
-  #             - arn:aws:s3:::logkuangju87
-  #             - arn:aws:s3:::logkuangju87/*
             
-  # First S3 Bucket for scripts
+  # S3 Buckets
   DataBucket1:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: scriptbucketkuangju87
 
-  # Second S3 Bucket for data
   DataBucket2:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: databucketkuangju87
 
-  # ScriptBucketPolicy:
-  #   Type: AWS::S3::BucketPolicy
-  #   Properties:
-  #     Bucket: scriptbucketkuangju87
-  #     PolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             AWS:
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-  #           Action:
-  #             - s3:*
-  #           Resource:
-  #             - arn:aws:s3:::scriptbucketkuangju87
-  #             - arn:aws:s3:::scriptbucketkuangju87/*
-
-  # DataBucketPolicy:
-  #   Type: AWS::S3::BucketPolicy
-  #   Properties:
-  #     Bucket: databucketkuangju87
-  #     PolicyDocument:
-  #       Version: '2012-10-17'
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             AWS:
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRClusterRole
-  #               - arn:aws:iam::${AWS::AccountId}:role/EMRServiceRole
-  #           Action:
-  #             - s3:*
-  #           Resource:
-  #             - arn:aws:s3:::databucketkuangju87
-  #             - arn:aws:s3:::databucketkuangju87/*
-
 Outputs:
   VPCId:
-    Description: The VPC ID
     Value: !Ref VPC
     Export:
       Name: MyVPCId
 
   PublicSubnetId:
-    Description: The Public Subnet ID
     Value: !Ref PublicSubnet
     Export:
       Name: MyPublicSubnetId
 
-  PrivateSubnetId:
-    Description: The Private Subnet ID
-    Value: !Ref PrivateSubnet
+  # Updated to Export both Subnets as a comma-separated list or individual IDs
+  PrivateSubnet1Id:
+    Value: !Ref PrivateSubnet1
     Export:
-      Name: MyPrivateSubnetId
+      Name: MyPrivateSubnet1Id
 
-  # EMRClusterId:
-  #   Description: The EMR Cluster ID
-  #   Value: !Ref EMRCluster
-  #   Export:
-  #     Name: MyEMRClusterId
+  PrivateSubnet2Id:
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: MyPrivateSubnet2Id
 
   DataBucket1Name:
-    Description: The name of the first S3 bucket
     Value: !Ref DataBucket1
     Export:
       Name: MyDataBucket1
 
   DataBucket2Name:
-    Description: The name of the second S3 bucket
     Value: !Ref DataBucket2
     Export:
       Name: MyDataBucket2
