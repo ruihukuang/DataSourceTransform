@@ -209,7 +209,7 @@ jobs:
       run: |
         
         # Then sync all files to S3
-        aws s3 sync "DataSourceTransform\MyDataBucket1\" s3://scriptbucketkuangju87/
+         aws s3 sync "MyDataBucket1/" s3://scriptbucketkuangju87/
         
         # Verify upload
         aws s3 ls s3://scriptbucketkuangju87/ --recursive
