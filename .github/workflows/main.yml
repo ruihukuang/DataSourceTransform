@@ -213,14 +213,18 @@ jobs:
           --template-file cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
           --parameter-overrides \
-            RDSSecretArn=${{ env.SECRET_ARN }} \
-            DBInstanceClass=db.t3.micro \
-            DBAllocatedStorage=5 \
-            DatabaseName=MyDatabase \
-            TableName=UploadedData \
-            DataBucket1Name=scriptbucketkuangju87 \
-            DataBucket2Name=databucketkuangju87 \
+              RDSSecretArn=${{ env.SECRET_ARN }} \
+              VPCId=${{ env.VPC_ID }} \
+              PrivateSubnetId=${{ env.SUBNET_ID }} \
+              StateMachineArn=${{ env.STATE_MACHINE_ARN }} \
+              DBInstanceClass=db.t3.micro \
+              DBAllocatedStorage=5 \
+              DatabaseName=MyDatabase \
+              TableName=UploadedData \
+              DataBucket1Name=scriptbucketkuangju87 \
+              DataBucket2Name=databucketkuangju87 \
           --capabilities CAPABILITY_NAMED_IAM
+          
 
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
