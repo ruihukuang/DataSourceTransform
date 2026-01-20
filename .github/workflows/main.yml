@@ -150,7 +150,7 @@ jobs:
           echo "New secret created with ARN: $SECRET_ARN"
         fi
 
-    - name: Verify VPC exports exist
+    - name: Verify  exports values from other templates exist
       run: |
         MAX_RETRIES=3
         RETRY_COUNT=0
@@ -165,11 +165,22 @@ jobs:
           SUBNET_ID=$(aws cloudformation list-exports \
            --query "Exports[?Name=='MyPrivateSubnetId'].Value" \
            --output text 2>/dev/null || echo "")
+
+
+          StateMachineArn=$(aws cloudformation list-exports \
+           --query "Exports[?Name=='MyStateMachineArn'].Value" \
+           --output text 2>/dev/null || echo "")
       
-          if [ -n "$VPC_ID" ] && [ -n "$SUBNET_ID" ]; then
-            echo "✅ VPC exports found!"
+          if [ -n "$VPC_ID" ] && [ -n "$SUBNET_ID" ] ; then
+            echo "✅ VPC exports found!" 
             echo "VPC ID: $VPC_ID"
             echo "Subnet ID: $SUBNET_ID"
+            exit 0
+          fi
+
+          if [ -n "$StateMachineArn" ]  ; then
+            echo "✅ State machine arn exports found!" 
+            echo "StateMachineArn: $StateMachineArn"
             exit 0
           fi
       
@@ -184,17 +195,6 @@ jobs:
     - name: Deploy Lambda and RDS using CloudFormation
       if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
-        # Check if StateMachine exists and get its ARN
-        if aws cloudformation describe-stacks --stack-name MyGlueStepFunction > /dev/null 2>&1; then
-           echo "Getting StateMachine ARN from existing stack..."
-           STATE_MACHINE_ARN=$(aws cloudformation describe-stacks \
-             --stack-name MyGlueStepFunction \
-             --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" \
-            --output text)
-        else
-          echo "StateMachine stack doesn't exist yet, using empty value..."
-          STATE_MACHINE_ARN=""
-        fi
 
         # Deploy the RDS stack
         aws cloudformation deploy \
@@ -208,7 +208,6 @@ jobs:
             TableName=UploadedData \
             DataBucket1Name=scriptbucketkuangju87 \
             DataBucket2Name=databucketkuangju87 \
-            StateMachineArn="$STATE_MACHINE_ARN" \
           --capabilities CAPABILITY_NAMED_IAM
 
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
