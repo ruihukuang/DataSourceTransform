@@ -150,47 +150,59 @@ jobs:
           echo "New secret created with ARN: $SECRET_ARN"
         fi
 
-    - name: Verify  exports values from other templates exist
+    - name: Verify all exports exist
+      id: verify_exports
       run: |
-        MAX_RETRIES=3
-        RETRY_COUNT=0
-    
-        echo "Waiting for VPC exports to be available..."
-    
-        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-           VPC_ID=$(aws cloudformation list-exports \
-           --query "Exports[?Name=='MyVPCId'].Value" \
-           --output text 2>/dev/null || echo "")
-      
-          SUBNET_ID=$(aws cloudformation list-exports \
-           --query "Exports[?Name=='MyPrivateSubnetId'].Value" \
-           --output text 2>/dev/null || echo "")
-
-
-          StateMachineArn=$(aws cloudformation list-exports \
-           --query "Exports[?Name=='MyStateMachineArn'].Value" \
-           --output text 2>/dev/null || echo "")
-      
-          if [ -n "$VPC_ID" ] && [ -n "$SUBNET_ID" ] ; then
-            echo "✅ VPC exports found!" 
-            echo "VPC ID: $VPC_ID"
-            echo "Subnet ID: $SUBNET_ID"
-            exit 0
-          fi
-
-          if [ -n "$StateMachineArn" ]  ; then
-            echo "✅ State machine arn exports found!" 
-            echo "StateMachineArn: $StateMachineArn"
-            exit 0
-          fi
-      
-          echo "Exports not ready yet, retrying in 10 seconds..."
-          sleep 10
-          RETRY_COUNT=$((RETRY_COUNT + 1))
-        done
-    
-        echo "❌ Failed to find VPC exports after $MAX_RETRIES retries"
-        exit 1
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          echo "Waiting for CloudFormation exports to be available..."
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            # Get all required exports
+            VPC_ID=$(aws cloudformation list-exports \
+              --query "Exports[?Name=='MyVPCId'].Value" \
+              --output text 2>/dev/null || echo "")
+            
+            SUBNET_ID=$(aws cloudformation list-exports \
+              --query "Exports[?Name=='MyPrivateSubnetId'].Value" \
+              --output text 2>/dev/null || echo "")
+            
+            STATE_MACHINE_ARN=$(aws cloudformation list-exports \
+              --query "Exports[?Name=='MyStateMachineArn'].Value" \
+              --output text 2>/dev/null || echo "")
+            
+            # Check if required exports exist
+            if [ -n "$VPC_ID" ] && [ -n "$SUBNET_ID" ] && \
+               [ "$VPC_ID" != "None" ] && [ "$SUBNET_ID" != "None" ]; then
+              
+              echo "✅ VPC exports found!"
+              echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
+              echo "SUBNET_ID=$SUBNET_ID" >> $GITHUB_ENV
+              
+              # Optional: StateMachineArn
+              if [ -n "$STATE_MACHINE_ARN" ] && [ "$STATE_MACHINE_ARN" != "None" ]; then
+                echo "✅ State machine ARN export found!"
+                echo "STATE_MACHINE_ARN=$STATE_MACHINE_ARN" >> $GITHUB_ENV
+              else
+                echo "⚠️ State machine ARN export not found (optional)"
+                echo "STATE_MACHINE_ARN=" >> $GITHUB_ENV
+              fi
+              
+              exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Waiting for exports... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 10
+            fi
+          done
+          
+          echo "❌ ERROR: Required exports not found after $MAX_RETRIES retries"
+          echo "Debug - Listing all exports:"
+          aws cloudformation list-exports --query "Exports[*].[Name,Value]" --output table
+          exit 1
  
     - name: Deploy Lambda and RDS using CloudFormation
       if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
