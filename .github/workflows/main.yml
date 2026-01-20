@@ -207,6 +207,12 @@ jobs:
     - name: Deploy Lambda and RDS using CloudFormation
       if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
+        
+        # Then sync all files to S3
+        aws s3 sync "DataSourceTransform\MyDataBucket1\" s3://scriptbucketkuangju87/
+        
+        # Verify upload
+        aws s3 ls s3://scriptbucketkuangju87/ --recursive
 
         # Deploy the RDS stack
         aws cloudformation deploy \
