@@ -122,22 +122,22 @@ jobs:
           }')
         
         # Check if secret exists
-        if aws secretsmanager describe-secret --secret-id ${{ env.SECRET_NAME }} > /dev/null 2>&1; then
+        if aws secretsmanager describe-secret --secret-id ${{ secrets.SECRET_NAME }} > /dev/null 2>&1; then
           echo "Secret exists, updating..."
           aws secretsmanager update-secret \
-            --secret-id ${{ env.SECRET_NAME }} \
+            --secret-id ${{ secrets.SECRET_NAME }} \
             --secret-string "$SECRET_JSON"
         else
           echo "Creating new secret..."
           aws secretsmanager create-secret \
-            --name ${{ env.SECRET_NAME }} \
+            --name ${{ secrets.SECRET_NAME }} \
             --description "RDS database credentials" \
             --secret-string "$SECRET_JSON"
         fi
         
         # Get the ARN of the secret
         SECRET_ARN=$(aws secretsmanager describe-secret \
-          --secret-id ${{ env.SECRET_NAME }} \
+          --secret-id ${{ secrets.SECRET_NAME }} \
           --query ARN --output text)
         
         echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
@@ -155,8 +155,11 @@ jobs:
             TableName=UploadedData \
             DataBucket1Name=scriptbucketkuangju87 \
             DataBucket2Name=databucketkuangju87 \
-            StateMachineArn=${{ secrets.STATE_MACHINE_ARN }} \
-          --capabilities CAPABILITY_NAMED_IAM
+            StateMachineArn=$(aws cloudformation describe-stacks \
+            --stack-name MyGlueStepFunction \
+            --query "Stacks[0].Outputs[?ExportName=='MyStateMachineArn'].OutputValue" \
+            --output text)\
+            --capabilities CAPABILITY_NAMED_IAM
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
     - name: Sync S3 bucket
