@@ -42,6 +42,7 @@ jobs:
     #     aws cloudformation wait stack-delete-complete --stack-name MyEMRS3
  
     - name: Deploy EMR and S3 using CloudFormation
+      if: steps.check_status.outputs.status != 'CREATE_COMPLETE' && steps.check_status.outputs.status != 'NOT_FOUND'
       run: |
         aws cloudformation deploy \
           --template-file cloudformation/EMR_S3.yaml \
@@ -70,6 +71,7 @@ jobs:
     #     aws cloudformation wait stack-delete-complete --stack-name MyGlueStepFunction
  
     - name: Deploy Glue and Step function using CloudFormation
+      if: steps.check_status_1.outputs.status_1 != 'CREATE_COMPLETE' && steps.check_status_1.outputs.status_1 != 'NOT_FOUND'
       run: |
         aws cloudformation deploy \
           --template-file cloudformation/Glue_StepFunction.yaml \
@@ -98,52 +100,72 @@ jobs:
     #     aws cloudformation wait stack-delete-complete --stack-name MyRdsLambdaSecretManager
 
     - name: Create or Update RDS Secret
-      id: create-secret
+      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
-        # Generate secure password (or use one from GitHub secrets)
-        RDS_PASSWORD=$(openssl rand -base64 32)
-        
-        # Create secret JSON
-        SECRET_JSON=$(jq -n \
-          --arg username "admin" \
-          --arg password "$RDS_PASSWORD" \
-          --arg dbname "MyDatabase" \
-          --arg engine "mysql" \
-          --arg host "localhost" \
-          --arg port "3306" \
-          '{
-            "username": $username,
-            "password": $password,
-            "dbname": $dbname,
-            "engine": $engine,
-            "host": $host,
-            "port": $port,
-            "description": "RDS database credentials"
-          }')
-        
         # Check if secret exists
         if aws secretsmanager describe-secret --secret-id ${{ secrets.SECRET_NAME }} > /dev/null 2>&1; then
-          echo "Secret exists, updating..."
-          aws secretsmanager update-secret \
-            --secret-id ${{ secrets.SECRET_NAME }} \
-            --secret-string "$SECRET_JSON"
+           echo "Secret already exists, skipping creation..."
+          # Get the existing secret's ARN
+          SECRET_ARN=$(aws secretsmanager describe-secret \
+          --secret-id ${{ secrets.SECRET_NAME }} \
+          --query ARN --output text)
+  
+          echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
         else
           echo "Creating new secret..."
+  
+          # Generate secure password
+          RDS_PASSWORD=$(openssl rand -base64 32)
+  
+         # Create secret JSON
+         SECRET_JSON=$(jq -n \
+           --arg username "admin" \
+           --arg password "$RDS_PASSWORD" \
+           --arg dbname "MyDatabase" \
+           --arg engine "mysql" \
+           --arg host "localhost" \
+           --arg port "3306" \
+          '{
+            "username": $username,
+           "password": $password,
+           "dbname": $dbname,
+           "engine": $engine,
+           "host": $host,
+           "port": $port,
+           "description": "RDS database credentials"
+           }')
+  
+           # Create new secret
           aws secretsmanager create-secret \
             --name ${{ secrets.SECRET_NAME }} \
             --description "RDS database credentials" \
             --secret-string "$SECRET_JSON"
+  
+           # Get the ARN of the newly created secret
+          SECRET_ARN=$(aws secretsmanager describe-secret \
+            --secret-id ${{ secrets.SECRET_NAME }} \
+            --query ARN --output text)
+  
+          echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
+          echo "New secret created with ARN: $SECRET_ARN"
         fi
-        
-        # Get the ARN of the secret
-        SECRET_ARN=$(aws secretsmanager describe-secret \
-          --secret-id ${{ secrets.SECRET_NAME }} \
-          --query ARN --output text)
-        
-        echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
  
     - name: Deploy Lambda and RDS using CloudFormation
+      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
+        # Check if StateMachine exists and get its ARN
+        if aws cloudformation describe-stacks --stack-name MyGlueStepFunction > /dev/null 2>&1; then
+           echo "Getting StateMachine ARN from existing stack..."
+           STATE_MACHINE_ARN=$(aws cloudformation describe-stacks \
+             --stack-name MyGlueStepFunction \
+             --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" \
+            --output text)
+        else
+          echo "StateMachine stack doesn't exist yet, using empty value..."
+          STATE_MACHINE_ARN=""
+        fi
+
+        # Deploy the RDS stack
         aws cloudformation deploy \
           --template-file cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
@@ -155,11 +177,9 @@ jobs:
             TableName=UploadedData \
             DataBucket1Name=scriptbucketkuangju87 \
             DataBucket2Name=databucketkuangju87 \
-            StateMachineArn=$(aws cloudformation describe-stacks \
-            --stack-name MyGlueStepFunction \
-            --query "Stacks[0].Outputs[?ExportName=='MyStateMachineArn'].OutputValue" \
-            --output text)\
-            --capabilities CAPABILITY_NAMED_IAM
+            StateMachineArn="$STATE_MACHINE_ARN" \
+          --capabilities CAPABILITY_NAMED_IAM
+          
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
     - name: Sync S3 bucket
