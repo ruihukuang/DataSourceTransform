@@ -149,6 +149,37 @@ jobs:
           echo "SECRET_ARN=$SECRET_ARN" >> $GITHUB_ENV
           echo "New secret created with ARN: $SECRET_ARN"
         fi
+
+    - name: Verify VPC exports exist
+      run: |
+        MAX_RETRIES=3
+        RETRY_COUNT=0
+    
+        echo "Waiting for VPC exports to be available..."
+    
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+           VPC_ID=$(aws cloudformation list-exports \
+           --query "Exports[?Name=='MyVPCId'].Value" \
+           --output text 2>/dev/null || echo "")
+      
+          SUBNET_ID=$(aws cloudformation list-exports \
+           --query "Exports[?Name=='MyPrivateSubnetId'].Value" \
+           --output text 2>/dev/null || echo "")
+      
+          if [ -n "$VPC_ID" ] && [ -n "$SUBNET_ID" ]; then
+            echo "✅ VPC exports found!"
+            echo "VPC ID: $VPC_ID"
+            echo "Subnet ID: $SUBNET_ID"
+            exit 0
+          fi
+      
+          echo "Exports not ready yet, retrying in 10 seconds..."
+          sleep 10
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+        done
+    
+        echo "❌ Failed to find VPC exports after $MAX_RETRIES retries"
+        exit 1
  
     - name: Deploy Lambda and RDS using CloudFormation
       if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
@@ -179,7 +210,7 @@ jobs:
             DataBucket2Name=databucketkuangju87 \
             StateMachineArn="$STATE_MACHINE_ARN" \
           --capabilities CAPABILITY_NAMED_IAM
-          
+
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
     - name: Sync S3 bucket
