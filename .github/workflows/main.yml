@@ -252,7 +252,7 @@ jobs:
               VPCId=${{ env.VPC_ID }} \
               PrivateSubnetIds="${{ env.SUBNET_ID_1 }},${{ env.SUBNET_ID_2 }}" \
               StateMachineArn=${{ env.STATE_MACHINE_ARN }} \
-              DBInstanceClass=db.t3.medium \
+              DBInstanceClass=db.t3.micro  \
               DatabaseName=MyDatabase \
               TableName=UploadedData \
               DataBucket1Name=scriptbucketkuangju87 \
