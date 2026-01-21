@@ -125,12 +125,12 @@ jobs:
   
          # Create secret JSON
          SECRET_JSON=$(jq -n \
-           --arg username "admin" \
+           --arg username "postgres" \
            --arg password "$RDS_PASSWORD" \
            --arg dbname "MyDatabase" \
-           --arg engine "mysql" \
+           --arg engine "postgres" \
            --arg host "localhost" \
-           --arg port "3306" \
+           --arg port "5432" \
           '{
             "username": $username,
            "password": $password,
