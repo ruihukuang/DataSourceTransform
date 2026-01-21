@@ -205,7 +205,7 @@ jobs:
             exit 1
     
     - name: Deploy Lambda and RDS using CloudFormation
-      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
+      if: steps.check_status_2.outputs.status_2 == 'CREATE_COMPLETE' || steps.check_status_2.outputs.status_2 == 'NOT_FOUND' || steps.check_status_2.outputs.status_2 == 'ROLLBACK_COMPLETE'
       run: |
         
         # Then sync all files to S3
@@ -233,6 +233,23 @@ jobs:
 
         aws cloudformation wait stack-create-complete --stack-name MyRdsLambdaSecretManager
 
-    - name: Sync S3 bucket
+    - name: Set S3 Trigger on Existing Bucket
       run: |
-        aws s3 sync MyDataBucket1/ s3://scriptbucket
+        LAMBDA_ARN=$(aws cloudformation describe-stacks --stack-name MyRdsLambdaSecretManager --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionArn'].OutputValue" --output text)
+        
+        # Define the notification JSON
+        cat <<EOF > notification.json
+        {
+          "LambdaFunctionConfigurations": [
+            {
+              "LambdaFunctionArn": "$LAMBDA_ARN",
+              "Events": ["s3:ObjectCreated:*"],
+              "Filter": { "Key": { "FilterRules": [{ "Name": "suffix", "Value": ".csv" }] } }
+            }
+          ]
+        }
+        EOF
+
+        aws s3api put-bucket-notification-configuration \
+          --bucket databucketkuangju87 \
+          --notification-configuration file://notification.json
