@@ -5,18 +5,24 @@ import psycopg2
 import csv
 import logging
 
+# Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 def get_creds(secret_arn):
+    """Retrieves DB credentials from Secrets Manager."""
     client = boto3.client('secretsmanager')
-    resp = client.get_secret_value(SecretId=secret_arn)
-    return json.loads(resp['SecretString'])
+    try:
+        response = client.get_secret_value(SecretId=secret_arn)
+        return json.loads(response['SecretString'])
+    except Exception as e:
+        logger.error(f"Failed to retrieve secret: {str(e)}")
+        raise
 
 def lambda_handler(event, context):
-    conn = None
+    connection = None
     try:
-        # Configuration
+        # Load Environment Variables
         secret_arn = os.environ['RDS_SECRET_ARN']
         host = os.environ['RDS_ENDPOINT']
         db_name = os.environ['DATABASE_NAME']
@@ -25,55 +31,69 @@ def lambda_handler(event, context):
         
         creds = get_creds(secret_arn)
         
-        # Connect to RDS
-        conn = psycopg2.connect(
+        # Connect to RDS PostgreSQL
+        connection = psycopg2.connect(
             host=host,
             user=creds['username'],
             password=creds['password'],
             dbname=db_name,
             port=creds.get('port', 5432),
-            connect_timeout=5
+            connect_timeout=10
         )
-        
+        connection.autocommit = True # Standard for simple inserts
+
         s3 = boto3.client('s3')
+        sf_client = boto3.client('stepfunctions')
+
         for record in event['Records']:
             bucket = record['s3']['bucket']['name']
             key = record['s3']['object']['key']
             
-            # Read CSV from S3
+            logger.info(f"Processing file: s3://{bucket}/{key}")
+            
+            # Read CSV
             obj = s3.get_object(Bucket=bucket, Key=key)
             lines = obj['Body'].read().decode('utf-8').splitlines()
             reader = csv.reader(lines)
             header = next(reader)
-            
-            with conn.cursor() as cur:
-                # Create table
-                cols = ", ".join([f'"{h}" TEXT' for h in header])
-                cur.execute(f'CREATE TABLE IF NOT EXISTS "{table_name}" (id SERIAL PRIMARY KEY, {cols})')
+
+            with connection.cursor() as cursor:
+                # 1. Dynamically create table if it doesn't exist
+                # id, file_metadata columns + CSV columns
+                col_defs = ", ".join([f'"{h.strip()}" TEXT' for h in header])
+                create_sql = f'CREATE TABLE IF NOT EXISTS "{table_name}" (id SERIAL PRIMARY KEY, load_file TEXT, {col_defs})'
+                cursor.execute(create_sql)
                 
-                # Insert data
-                placeholders = ", ".join(['%s'] * len(header))
-                insert_query = f'INSERT INTO "{table_name}" ({", ".join([f'"{h}"' for h in header])}) VALUES ({placeholders})'
+                # 2. Bulk Insert
+                col_names = ", ".join([f'"{h.strip()}"' for h in header])
+                placeholders = ", ".join(['%s'] * (len(header) + 1))
+                insert_sql = f'INSERT INTO "{table_name}" (load_file, {col_names}) VALUES ({placeholders})'
                 
-                count = 0
+                rows_processed = 0
                 for row in reader:
                     if len(row) == len(header):
-                        cur.execute(insert_query, row)
-                        count += 1
-                conn.commit()
+                        cursor.execute(insert_sql, [key] + row)
+                        rows_processed += 1
                 
-                # Trigger Step Function
+                logger.info(f"Successfully loaded {rows_processed} rows.")
+
+                # 3. Trigger Step Function
                 if sm_arn:
-                    boto3.client('stepfunctions').start_execution(
+                    sf_client.start_execution(
                         stateMachineArn=sm_arn,
-                        input=json.dumps({"file": key, "rows": count})
+                        input=json.dumps({
+                            "status": "COMPLETED",
+                            "file_processed": key,
+                            "rows_count": rows_processed
+                        })
                     )
-        
-        return {"status": "success"}
+
+        return {"statusCode": 200, "body": "Processing Complete"}
 
     except Exception as e:
-        logger.error(f"Error: {e}")
-        if conn: conn.rollback()
+        logger.error(f"Critical Error: {str(e)}")
         raise e
     finally:
-        if conn: conn.close()
+        if connection:
+            connection.close()
+            logger.info("RDS Connection closed.")
