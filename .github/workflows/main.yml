@@ -205,7 +205,7 @@ jobs:
             exit 1
     
     - name: Deploy Lambda and RDS using CloudFormation
-      if: steps.check_status_2.outputs.status_2 == 'CREATE_COMPLETE' || steps.check_status_2.outputs.status_2 == 'NOT_FOUND' || steps.check_status_2.outputs.status_2 == 'ROLLBACK_COMPLETE'
+      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
         
         # Then sync all files to S3
