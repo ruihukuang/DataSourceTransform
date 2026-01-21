@@ -2,6 +2,12 @@ name: Deploy a workflow in Source Account to process and send data
 
 on:
  workflow_dispatch:
+ push:
+    branches:
+      - main
+    paths:
+      # This workflow ONLY triggers automatically if these specific files change
+      - 'requirements.txt'
       
 permissions:
       id-token: write   # This is required for requesting the JWT
@@ -203,10 +209,33 @@ jobs:
             echo "Check if the VPC and Step Function stacks were deployed successfully."
             aws cloudformation list-exports --query "Exports[*].[Name,Value]" --output table
             exit 1
+
+    - name: Install dependencies
+      run: |
+          # Create the folder structure required by AWS Lambda Layers
+          mkdir -p python/lib/python3.9/site-packages
+          
+          # Install psycopg2-binary into the folder
+          # Make sure 'psycopg2-binary' is inside your requirements.txt
+          pip install -r requirements.txt -t python/lib/python3.9/site-packages/
+
+    - name: Create Zip Archive
+      run: |
+        # Zip the 'python' folder. 
+        # The structure inside the zip must be python/lib/python3.9/...
+        zip -r dependencies_package.zip python/
+
+    
+    - name: Upload to S3
+      run: |
+          # Uploading to your specific script bucket
+          aws s3 cp dependencies_package.zip s3://scriptbucketkuangju87/dependencies_package.zip
     
     - name: Deploy Lambda and RDS using CloudFormation
       if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
+
+        
         
         # Then sync all files to S3
          aws s3 sync "MyDataBucket1/" s3://scriptbucketkuangju87/
