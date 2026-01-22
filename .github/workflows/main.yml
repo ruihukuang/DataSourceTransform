@@ -232,7 +232,7 @@ jobs:
           aws s3 cp dependencies_package.zip s3://scriptbucketkuangju87/dependencies_package.zip
     
     - name: Deploy Lambda and RDS using CloudFormation
-      if: steps.check_status_2.outputs.status_2 != 'CREATE_COMPLETE' && steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
+      if:  steps.check_status_2.outputs.status_2 != 'NOT_FOUND'
       run: |
 
         # Create the zip file
