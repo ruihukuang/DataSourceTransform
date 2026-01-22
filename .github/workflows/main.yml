@@ -249,7 +249,7 @@ jobs:
 
         # Deploy the RDS stack
         aws cloudformation deploy \
-          --template-file file://cloudformation/RDS_Lambda_SecretManager.yaml \
+          --template-file ./cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
           --no-fail-on-empty-changeset \
           --parameter-overrides \
