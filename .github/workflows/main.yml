@@ -249,7 +249,7 @@ jobs:
 
         # Deploy the RDS stack
         aws cloudformation deploy \
-          --template-file cloudformation/RDS_Lambda_SecretManager.yaml \
+          --template-body file://cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
           --parameter-overrides \
               RDSSecretArn=${{ env.SECRET_ARN }} \
