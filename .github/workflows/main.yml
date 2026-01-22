@@ -251,6 +251,7 @@ jobs:
         aws cloudformation deploy \
           --template-file file://cloudformation/RDS_Lambda_SecretManager.yaml \
           --stack-name MyRdsLambdaSecretManager \
+          --no-fail-on-empty-changeset \
           --parameter-overrides \
               RDSSecretArn=${{ env.SECRET_ARN }} \
               VPCId=${{ env.VPC_ID }} \
