@@ -17,4 +17,4 @@ Final Delivery: The Spark script partitions the processed data and sends it in b
 
 Current Stage:
 
-Deployed S3, dependency scripts
+Successfully deployed AWS infrastructure and S3 script assets using GitHub Actions and AWS CLI (EMR deployment pending).
