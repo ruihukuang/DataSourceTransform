@@ -15,3 +15,6 @@ Data Processing: The Glue job prepares and transforms the data before handing it
 
 Final Delivery: The Spark script partitions the processed data and sends it in batches to an external prediction/model endpoint in a target account, which is implemented via the repository: https://github.com/ruihukuang/xgboost_model_docker_image.
 
+Current Stage:
+
+Deployed S3, dependency scripts
